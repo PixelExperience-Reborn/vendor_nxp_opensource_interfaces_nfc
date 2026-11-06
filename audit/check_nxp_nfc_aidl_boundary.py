@@ -137,9 +137,23 @@ def official_aosp17(root):
     if vendor_iface:
         official_bp = show(root, ref, vendor_iface[0])
         require('name: "vendor.nxp.nxpnfc_aidl"' in official_bp
-                and 'stability: "vintf"' in official_bp,
-                "official AOSP17 NXP vendor AIDL module changed")
-        print("PASS: official AOSP17 HAL already owns NXP vendor VINTF-stable AIDL")
+                and 'stability: "vintf"' in official_bp
+                and "ndk: {" in official_bp,
+                "official AOSP17 NXP vendor AIDL NDK module changed")
+        aidl_path = vendor_iface[0].removesuffix("Android.bp") + "vendor/nxp/nxpnfc_aidl/INxpNfc.aidl"
+        require(aidl_path in files,
+                "official AOSP17 NXP vendor AIDL declaration missing")
+        official_api = show(root, ref, aidl_path)
+        require("package vendor.nxp.nxpnfc_aidl;" in official_api
+                and "@VintfStability" in official_api,
+                "official NXP vendor AIDL identity changed")
+        for method in ("getVendorParam(", "setVendorParam(", "resetEse(",
+                       "setNxpTransitConfig("):
+            require(method in official_api,
+                    "official NXP vendor AIDL API changed: " + method)
+        print("PASS: official AOSP17 HAL ALREADY provides frozen-compatible NXP AIDL methods")
+        print("DECISION: do not import modern NXP fork redundantly; keep AOSP17 owner")
+        print(f"INFO: official NXP vendor AIDL source: {aidl_path}")
     else:
         print("INFO: no matching official vendor AIDL module at old NXP path")
         print("OPEN: independent AOSP17 Soong/device consumer and exact owner")
