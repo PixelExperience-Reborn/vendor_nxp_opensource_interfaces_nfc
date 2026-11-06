@@ -38,6 +38,14 @@ Verified project: [NXPNFCProject/nfcandroid_nfc_hidlimpl](https://github.com/NXP
 | Old `vendor.nxp.hardware.nfc@1.x/@2.0` / `vendor.nxp.nxpnfclegacy@1.0` | Archived PE source | **Do not activate**, unless device-specific vendor ELF/HIDL manifests prove a currently necessary distinct ABI, followed by narrowly scoped compatibility and compliance tests |
 | Newer NXP 17.07.00 sources/firmware | Exact upstream release and verified device controller revision | **Review current source**, do not flash unknown firmware or transplant controller configuration |
 
+## AOSP17 comparison resolved by live source CI
+
+The official `android-17.0.0_r1` tree `platform/hardware/nxp/nfc` (commit `68931d93d3b2ccfc71553cb03088fe5d6fb5dd30`, tree `8386a3c67e07f5fe492c92d1888c256bbc37d48b`) **already declares** `vendor.nxp.nxpnfc_aidl` with VINTF stability and the exact four modern vendor API methods. Its interface source is `intf/nxpnfc/aidl/vendor/nxp/nxpnfc_aidl/INxpNfc.aidl`. This was asserted against an immutable official Git checkout by [GitHub Actions #42310830612](https://github.com/PixelExperience-Reborn/vendor_nxp_opensource_interfaces_nfc/actions/runs/42310830612), **SUCCESS**, together with exact current NXP 17.07.00 and 2020 historical HIDL pins and **27/27 manifest tests PASS**.
+
+**Therefore the modern AIDL contract is already available in the AOSP17 source baseline. No additional modern NXP fork or legacy vendor/nxp interface checkout is required.** New NXP features, if any, should be evaluated as a *precisely scoped change against the existing official hardware/nxp/nfc checkout*, not by adding another module namespace or service registration. The selected product must still choose and build the appropriate AIDL service generation; source presence does not mean this device already runs it.
+
+This CI outcome is only source ownership/API evidence; it did **not** prove Soong compilation, actual vendor package installation, VINTF/SEPolicy compliance, service caller authorization, NFC firmware compatibility, Secure Element or physical mondrian operation.
+
 ## Security, power and device-quality acceptance
 
 1. **Exact hardware identity**: identify the actual mondrian NFC NFCC, firmware, eSE/UICC routing and SKU; do not assume PN81T/SN100/PN7160 from an unrelated ROM or NXP README.
