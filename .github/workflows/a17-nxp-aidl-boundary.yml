@@ -1,0 +1,71 @@
+name: AOSP17 NXP NFC stable AIDL vs archived HIDL
+
+on:
+  push:
+    branches:
+      - audit/a17-nxp-aidl-interface-20261107
+    paths:
+      - 'audit/check_nxp_nfc_aidl_boundary.py'
+      - 'docs/ANDROID_17_NXP_AIDL_INTERFACE_AUDIT.md'
+      - '.github/workflows/a17-nxp-aidl-boundary.yml'
+  pull_request:
+    paths:
+      - 'audit/check_nxp_nfc_aidl_boundary.py'
+      - 'docs/ANDROID_17_NXP_AIDL_INTERFACE_AUDIT.md'
+      - '.github/workflows/a17-nxp-aidl-boundary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-aidl-and-manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout audit (no stored token)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Read original 2020 archived NFC interface commit
+        run: |
+          git fetch -q --no-tags --depth=1 origin \
+            +refs/heads/seventeen:refs/remotes/origin/seventeen
+      - name: Fetch NXP Android17 upstream 17.07.00 actual native interfaces
+        run: |
+          git init -q "$RUNNER_TEMP/nxp17"
+          git -C "$RUNNER_TEMP/nxp17" remote add origin \
+            https://github.com/NXPNFCProject/nfcandroid_nfc_hidlimpl.git
+          git -C "$RUNNER_TEMP/nxp17" fetch -q --no-tags --depth=1 \
+            --filter=blob:none origin \
+            +refs/heads/br_ar_17_aosp_mainline:refs/remotes/origin/br_ar_17_aosp_mainline
+      - name: Fetch official AOSP17 NFC HAL repository without override
+        run: |
+          git init -q "$RUNNER_TEMP/aosp17-nxp"
+          git -C "$RUNNER_TEMP/aosp17-nxp" remote add origin \
+            https://android.googlesource.com/platform/hardware/nxp/nfc
+          git -C "$RUNNER_TEMP/aosp17-nxp" fetch -q --no-tags --depth=1 \
+            --filter=blob:none origin \
+            refs/tags/android-17.0.0_r1:refs/tags/android-17.0.0_r1
+      - name: Fetch reviewed independent AOSP17 PE-Reborn manifest
+        run: |
+          git clone -q --depth=1 \
+            --branch port/a17-aosp17-manifest-20261102 \
+            https://github.com/PixelExperience-Reborn/manifest.git \
+            "$RUNNER_TEMP/manifest"
+      - name: Assert pinned legacy, NXP17 and official AOSP17 interface boundary
+        run: |
+          python3 audit/check_nxp_nfc_aidl_boundary.py \
+            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/nxp17" \
+            "$RUNNER_TEMP/aosp17-nxp" "$RUNNER_TEMP/manifest"
+      - name: Execute adversarial manifest-ownership and candidate tests
+        run: |
+          cd "$RUNNER_TEMP/manifest"
+          python3 -m unittest discover -s tools \
+            -p test_aosp17_manifest_entrypoint.py -v
+      - name: State verification scope
+        run: |
+          echo "SOURCE ONLY: versioned old HIDL, current NXP AIDL API + VINTF,"
+          echo "official AOSP17 source, manifest path and adversarial tests."
+          echo "NOT TESTED: Android17 Soong/NDK, service/caller SELinux,"
+          echo "VINTF assembled device graph, eSE/APDU or physical mondrian."
